@@ -1,0 +1,15 @@
+ISTRUZIONI COMPILAZIONE CARCODE SCANNER 2.2
+
+1. Carica i file di questo ZIP in un repository GitHub. Il workflow deve stare in .github/workflows/android-apk.yml.
+2. Nel repository: Settings > Secrets and variables > Actions > New repository secret.
+3. Aggiungi CARCODE_P12_BASE64 (il contenuto base64 della chiave CarCode-Scanner.p12 privata).
+4. Aggiungi CARCODE_P12_PASSWORD (la password presente in password.txt privato).
+5. Actions > Compila CarCode Scanner 2.2 > Run workflow.
+6. Al termine apri il job, sezione Artifacts, scarica CarCode-Scanner-2.2.zip. Dentro trovi l'APK firmato.
+7. Puoi pubblicare SOLO l'APK sulla release v2.2 del repository degli aggiornamenti.
+
+NON CARICARE MAI CarCode-Scanner.p12 o password.txt nel repository pubblico.
+Per creare base64 su Windows PowerShell:
+[Convert]::ToBase64String([IO.File]::ReadAllBytes('C:\percorso\CarCode-Scanner.p12'))
+
+Questo archivio include il sorgente e il workflow, NON contiene la chiave privata né un APK compilato.

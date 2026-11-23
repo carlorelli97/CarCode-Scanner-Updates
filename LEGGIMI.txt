@@ -1,0 +1,20 @@
+CARCODE SCANNER 2.2 – NUOVA RICERCA ORDINI ED EAN
+
+Novita rispetto alla 2.1:
+- Scansionando un numero ordine nella modalita Ricerca, si apre subito il dettaglio completo, inclusi i doppi ordini correlati presenti nell'archivio.
+- Scansionando un EAN o uno SKU, si visualizza l'elenco di TUTTI gli ordini attivi che contengono quel codice, con gli articoli/varianti/quantita corrispondenti.
+- Dal risultato EAN e possibile aprire il dettaglio di uno specifico ordine o avviare separatamente la verifica pacco.
+- La fotocamera di ricerca si chiude automaticamente quando trova corrispondenze, per mostrare immediatamente i risultati. La modalita Verifica pacco e separata.
+- La ricerca e di sola lettura e non conferma alcun pezzo.
+- I lettori che restituiscono UPC-A da 12 cifre o EAN-13 con zero iniziale sono supportati.
+- Grafica, icona e collegamento Google esistenti sono conservati.
+- Controllo aggiornamenti automatico GitHub al massimo una volta ogni 24 ore, con pulsanti Aggiorna ora e Ricordamelo domani; nessun blocco della preparazione. Il controllo manuale resta disponibile.
+
+REQUISITI SUI DATI
+Il collegamento tra EAN e SKU richiede il codice nella scheda Google CARCODE_SCANNER_BARCODE o nell'archivio locale; oppure direttamente sulla riga ordine. Senza un'associazione nota l'EAN non puo essere ricondotto a uno SKU. La ricerca mostra ordini ancora attivi; chiusi e scaduti sono esclusi.
+
+COMPILAZIONE
+Aprire la cartella in Android Studio, installare JDK 17 e Android SDK 35, eseguire Gradle Sync e Build APK(s). Per aggiornare l'app installata senza perdere i dati e necessaria la stessa chiave di firma delle versioni precedenti; una firma diversa richiederebbe un'altra installazione. Questo pacchetto contiene il CODICE SORGENTE: l'APK non e compreso ne verificato su dispositivo.
+
+AGGIORNAMENTO ONLINE
+Il controllo aggiornamenti GitHub e gia nel codice Java. La prossima release deve avere tag v2.2 e asset CarCode-Scanner-2.2.apk nel repository configurato.

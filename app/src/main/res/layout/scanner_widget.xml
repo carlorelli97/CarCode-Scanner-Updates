@@ -1,0 +1,12 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@drawable/widget_background" android:padding="12dp">
+    <TextView android:id="@+id/widget_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="CarCode Scanner" android:textStyle="bold" android:textSize="16sp" android:textColor="#F5F8FD"/>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal" android:layout_marginTop="7dp">
+        <TextView android:id="@+id/widget_open" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:background="@drawable/widget_button" android:gravity="center" android:text="—\nDa preparare" android:textStyle="bold" android:textColor="#F5F8FD" android:textSize="13sp"/>
+        <TextView android:id="@+id/widget_done" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:layout_marginStart="6dp" android:background="@drawable/widget_button" android:gravity="center" android:text="—\nCompletati" android:textStyle="bold" android:textColor="#83DDB7" android:textSize="13sp"/>
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="42dp" android:orientation="horizontal" android:layout_marginTop="6dp">
+        <TextView android:id="@+id/widget_scan" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:gravity="center" android:background="@drawable/widget_primary" android:text="▣ Scansiona" android:textColor="#FFFFFF" android:textStyle="bold" android:textSize="14sp"/>
+        <TextView android:id="@+id/widget_search" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:layout_marginStart="6dp" android:gravity="center" android:background="@drawable/widget_button" android:text="Cerca SKU" android:textColor="#FFFFFF" android:textStyle="bold" android:textSize="14sp"/>
+    </LinearLayout>
+    <TextView android:id="@+id/widget_stamp" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="Apri app per aggiornare" android:textColor="#A6B9D0" android:textSize="10sp" android:singleLine="true"/>
+</LinearLayout>
