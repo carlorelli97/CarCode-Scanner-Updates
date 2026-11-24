@@ -16,11 +16,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class MainActivity extends Activity {
     private WebView web;
     private ProductMedia media;
-    private final java.util.concurrent.ThreadPoolExecutor mediaExecutor=new java.util.concurrent.ThreadPoolExecutor(1,1,0L,java.util.concurrent.TimeUnit.MILLISECONDS,new java.util.concurrent.ArrayBlockingQueue<Runnable>(24));
+    private final java.util.concurrent.ThreadPoolExecutor mediaExecutor=new java.util.concurrent.ThreadPoolExecutor(2,2,0L,java.util.concurrent.TimeUnit.MILLISECONDS,new java.util.concurrent.ArrayBlockingQueue<Runnable>(24));
+    private final java.util.concurrent.ExecutorService fullMediaExecutor=new java.util.concurrent.ThreadPoolExecutor(1,1,0L,java.util.concurrent.TimeUnit.MILLISECONDS,new java.util.concurrent.ArrayBlockingQueue<Runnable>(2));
     private ValueCallback<Uri[]> fileCallback;
     private final AtomicBoolean checking = new AtomicBoolean(false);
     private static final String REPO="carlorelli97/CarCode-Scanner-Updates";
-    private static final String CURRENT="2.5";
+    private static final String CURRENT="2.6";
     static java.lang.ref.WeakReference<MainActivity> scannerHost=new java.lang.ref.WeakReference<>(null);
     void continuousCode(String code){if(web!=null&&!isDestroyed())web.evaluateJavascript("window.cameraLookup("+JSONObject.quote(code)+")",null);}
     void refreshWhileScanning(){if(web!=null&&!isDestroyed())web.evaluateJavascript("window.cameraRefresh&&window.cameraRefresh()",null);}
@@ -84,11 +85,8 @@ public class MainActivity extends Activity {
         web.setWebViewClient(new WebViewClient(){@Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest r){return !r.getUrl().toString().startsWith("file:///android_asset/");}});
         web.addJavascriptInterface(new Object(){ @JavascriptInterface public void scan(){runOnUiThread(()->{scannerHost=new java.lang.ref.WeakReference<>(MainActivity.this);web.evaluateJavascript("true",v->startActivityForResult(new Intent(MainActivity.this,ScannerActivity.class).putExtra("continuous","true".equals(v)),101));});}
         @JavascriptInterface public void openProduct(String url){if(ProductMedia.valid(url,false))runOnUiThread(()->{try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url)));}catch(Exception ignored){}});}
-        @JavascriptInterface public void loadMedia(String token,String link,String image){
-            if(token==null||!token.matches("[0-9]{1,16}")||!ProductMedia.valid(link,false))return;
-            try{mediaExecutor.execute(()->{String data="",resolved="";try{ProductMedia.Result r=media.load(link,image);data=r.data;resolved=r.image;}catch(Exception ignored){}final String d=data,u=resolved;runOnUiThread(()->{if(web!=null&&!isDestroyed())web.evaluateJavascript("window.productMediaResult("+JSONObject.quote(token)+","+JSONObject.quote(u)+","+JSONObject.quote(d)+")",null);});});}
-            catch(java.util.concurrent.RejectedExecutionException ex){runOnUiThread(()->web.evaluateJavascript("window.productMediaResult("+JSONObject.quote(token)+",\"\",\"\")",null));}
-        }
+        @JavascriptInterface public void loadMedia(String token,String link,String image){queueMedia(token,link,image,false);}
+        @JavascriptInterface public void loadFullMedia(String token,String link,String image){queueMedia(token,link,image,true);}
         @JavascriptInterface public void showLookupResults(){runOnUiThread(()->ScannerActivity.showResults());}
         @JavascriptInterface public void cameraFeedback(String message){runOnUiThread(()->ScannerActivity.feedback(message));}
         @JavascriptInterface public void cameraSyncStatus(String message){runOnUiThread(()->ScannerActivity.syncFeedback(message));}
@@ -107,6 +105,13 @@ public class MainActivity extends Activity {
         web.loadUrl("file:///android_asset/index.html");
         checkUpdates(false);
     }
-    @Override protected void onDestroy(){mediaExecutor.shutdownNow();super.onDestroy();}
+    private void queueMedia(String token,String link,String image,boolean full){
+        if(token==null||!token.matches("[0-9]{1,16}"))return;
+        try{(full?fullMediaExecutor:mediaExecutor).execute(()->{String data="",resolved="",error="";try{ProductMedia.Result r=media.load(link,image,full);data=r.data;resolved=r.image;}catch(Exception ex){error=ex.getMessage()==null?"Download non riuscito":ex.getMessage();}mediaReply(token,resolved,data,error,full);});}
+        catch(java.util.concurrent.RejectedExecutionException ex){mediaReply(token,"","","Coda immagini occupata",full);}
+    }
+    private void mediaReply(String token,String resolved,String data,String error,boolean full){runOnUiThread(()->{if(web!=null&&!isDestroyed())web.evaluateJavascript("window."+(full?"fullMediaResult":"productMediaResult")+"("+JSONObject.quote(token)+","+JSONObject.quote(resolved)+","+JSONObject.quote(data)+","+JSONObject.quote(error)+")",null);});}
+    @Override public void onBackPressed(){if(web==null){super.onBackPressed();return;}web.evaluateJavascript("window.closeFullMedia&&window.closeFullMedia()",v->{if(!"true".equals(v))super.onBackPressed();});}
+    @Override protected void onDestroy(){mediaExecutor.shutdownNow();fullMediaExecutor.shutdownNow();super.onDestroy();}
     @Override protected void onActivityResult(int req,int res,Intent data){super.onActivityResult(req,res,data);if(req==101&&res==RESULT_OK&&data!=null){String code=data.getStringExtra("barcode");if(code!=null)web.evaluateJavascript("receiveScan("+JSONObject.quote(code)+")",null);}else if(req==102&&fileCallback!=null){fileCallback.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(res,data));fileCallback=null;}}
 }

@@ -25,14 +25,14 @@ let searchTimer;search.addEventListener('input',()=>{clearTimeout(searchTimer);s
 let skuTimer;$('search').oninput=()=>{clearTimeout(skuTimer);skuTimer=setTimeout(()=>{catalogPage=0;render()},120)};
 archiveDetails.addEventListener('toggle',()=>{if(archiveDetails.open&&visibleTab('settings'))render()});
 // Keep connection settings hidden after configuration, without changing stored credentials.
-syncDetails.open=!config;document.querySelector('footer').textContent='CarCode Scanner • Controllo imballaggio';
+syncDetails.open=!config;document.querySelector('footer').textContent='Creato da Carlo Relli © 2026  •  CarCode';
 const camera=$('cameraBtn');camera.textContent='▣  SCANSIONA BARCODE';const scanPanel=$('scanForm').closest('.panel');scanPanel.insertBefore(camera,$('scanForm'));$('code').placeholder='Barcode pistola / inserimento manuale';
 render();
 // Version and updater remain visible without exposing technical settings.
-document.querySelector('header small').textContent='CONTROLLO IMBALLAGGIO · 2.5';
+document.querySelector('header small').textContent='CONTROLLO IMBALLAGGIO · 2.6';
 const updatePanel=document.createElement('div');
 updatePanel.className='panel';
-updatePanel.innerHTML='<h2>Versione 2.5</h2><p class="muted">Controllo automatico all’apertura.</p><button class="primary wide" id="checkUpdates">Controlla aggiornamenti</button>';
+updatePanel.innerHTML='<h2>Versione 2.6</h2><p class="muted">Controllo automatico all’apertura.</p><button class="primary wide" id="checkUpdates">Controlla aggiornamenti</button>';
 details('Aggiornamenti CarCode',[updatePanel]);
 $('checkUpdates').onclick=()=>{if(window.CarCodeNative)CarCodeNative.checkUpdates();};
 const dashboard=document.createElement('div');
