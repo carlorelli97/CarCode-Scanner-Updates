@@ -13,11 +13,10 @@ window.syncResult=function(raw){if(!pending)return;let p=pending;pending=null;tr
 const EXPIRY_MS=36*60*60*1000;
 let serverOffset=Number(localStorage.getItem('carcode-server-offset'))||0;
 function expireCached(){
- if(!config)return false;
  const expired=Array.isArray(state.expired)?state.expired:[];let changed=false;
- const now=Date.now()+serverOffset;
+ const now=Date.now()+(config?serverOffset:0);
  for(const [id,o] of Object.entries(state.orders)){
-  const received=Date.parse(o.receivedAt);if(!Number.isFinite(received)||now-received<EXPIRY_MS)continue;
+  let received=Date.parse(o.receivedAt);if(!Number.isFinite(received)&&!config){o.receivedAt=new Date(now).toISOString();received=now;changed=true;}if(!Number.isFinite(received)||now-received<EXPIRY_MS)continue;
   if(!expired.some(x=>x.id===id))expired.unshift({id,date:new Date(received+EXPIRY_MS).toISOString()});
   delete state.orders[id];if(state.current===id){state.current=null;notify('Ordine scaduto dopo 36 ore');}changed=true;
  }
@@ -45,7 +44,7 @@ expireCached();
 render();if(config&&window.CarCodeNative)remote('pull');
 // Check the cache even while a package is open. Refresh idle devices automatically.
 setInterval(()=>{if(!pending&&expireCached())render();},10000);
-function idleRefresh(force=false){if(!config||!window.CarCodeNative||pending||queue.length||state.current||(!force&&document.hidden))return;requestSync('pull').then(x=>{const current={...state.orders};for(const h of state.history)if(x.orders?.[h.id]?.closed)current[h.id]=x.orders[h.id];if(JSON.stringify(current)!==JSON.stringify(x.orders||{})||JSON.stringify(state.catalog)!==JSON.stringify(x.catalog||{}))applyRemote(x);else if(expireCached())render();}).catch(()=>{});}
+function idleRefresh(force=false){if(!config||!window.CarCodeNative||pending||queue.length||state.current||(!force&&document.hidden))return;requestSync('pull').then(x=>{const current={...state.orders};for(const h of state.history)if(x.orders?.[h.id]?.closed)current[h.id]=x.orders[h.id];if(JSON.stringify(current)!==JSON.stringify(x.orders||{})||JSON.stringify(state.catalog)!==JSON.stringify(x.catalog||{}))applyRemote(x);else {if(expireCached())render();window.syncHealth25?.(true);}}).catch(()=>window.syncHealth25?.(false));}
 window.cameraRefresh=()=>{if(!config){CarCodeNative.cameraSyncStatus('Archivio locale');return;}if(pending||queue.length||state.current)return;requestSync('pull').then(x=>{applyRemote(x);CarCodeNative.cameraSyncStatus('Sincronizzato · '+new Date().toLocaleTimeString('it-IT'));}).catch(()=>CarCodeNative.cameraSyncStatus('Sincronizzazione non riuscita'));};
 setInterval(idleRefresh,15000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){if(!pending&&expireCached())render();idleRefresh();}});

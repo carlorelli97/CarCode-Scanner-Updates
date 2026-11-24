@@ -20,7 +20,7 @@ public class MainActivity extends Activity {
     private ValueCallback<Uri[]> fileCallback;
     private final AtomicBoolean checking = new AtomicBoolean(false);
     private static final String REPO="carlorelli97/CarCode-Scanner-Updates";
-    private static final String CURRENT="2.4";
+    private static final String CURRENT="2.5";
     static java.lang.ref.WeakReference<MainActivity> scannerHost=new java.lang.ref.WeakReference<>(null);
     void continuousCode(String code){if(web!=null&&!isDestroyed())web.evaluateJavascript("window.cameraLookup("+JSONObject.quote(code)+")",null);}
     void refreshWhileScanning(){if(web!=null&&!isDestroyed())web.evaluateJavascript("window.cameraRefresh&&window.cameraRefresh()",null);}
@@ -82,7 +82,7 @@ public class MainActivity extends Activity {
         web.getSettings().setJavaScriptEnabled(true); web.getSettings().setDomStorageEnabled(true);
         web.getSettings().setCacheMode(WebSettings.LOAD_NO_CACHE); web.getSettings().setAllowFileAccess(false); web.getSettings().setAllowContentAccess(true);
         web.setWebViewClient(new WebViewClient(){@Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest r){return !r.getUrl().toString().startsWith("file:///android_asset/");}});
-        web.addJavascriptInterface(new Object(){ @JavascriptInterface public void scan(){runOnUiThread(()->{scannerHost=new java.lang.ref.WeakReference<>(MainActivity.this);web.evaluateJavascript("typeof packing!=='undefined'&&!packing",v->startActivityForResult(new Intent(MainActivity.this,ScannerActivity.class).putExtra("continuous","true".equals(v)),101));});}
+        web.addJavascriptInterface(new Object(){ @JavascriptInterface public void scan(){runOnUiThread(()->{scannerHost=new java.lang.ref.WeakReference<>(MainActivity.this);web.evaluateJavascript("true",v->startActivityForResult(new Intent(MainActivity.this,ScannerActivity.class).putExtra("continuous","true".equals(v)),101));});}
         @JavascriptInterface public void openProduct(String url){if(ProductMedia.valid(url,false))runOnUiThread(()->{try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url)));}catch(Exception ignored){}});}
         @JavascriptInterface public void loadMedia(String token,String link,String image){
             if(token==null||!token.matches("[0-9]{1,16}")||!ProductMedia.valid(link,false))return;

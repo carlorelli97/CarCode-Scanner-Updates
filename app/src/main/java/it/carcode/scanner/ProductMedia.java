@@ -20,7 +20,7 @@ final class ProductMedia {
     private static byte[] get(String url,boolean image) throws Exception {
         for(int i=0;i<4;i++){
             if(!valid(url,image))throw new IOException("URL non autorizzato");
-            HttpURLConnection c=(HttpURLConnection)new URL(url).openConnection();c.setConnectTimeout(4000);c.setReadTimeout(5000);c.setInstanceFollowRedirects(false);c.setRequestProperty("User-Agent","Mozilla/5.0 CarCode/2.4");
+            HttpURLConnection c=(HttpURLConnection)new URL(url).openConnection();c.setConnectTimeout(4000);c.setReadTimeout(5000);c.setInstanceFollowRedirects(false);c.setRequestProperty("User-Agent","Mozilla/5.0 CarCode/2.5");
             try{
                 int status=c.getResponseCode();if(status>=300&&status<400){String location=c.getHeaderField("Location");if(location==null)throw new IOException("Redirect senza destinazione");url=new URL(new URL(url),location).toString();continue;}
                 if(status!=200)throw new IOException("HTTP "+status);
