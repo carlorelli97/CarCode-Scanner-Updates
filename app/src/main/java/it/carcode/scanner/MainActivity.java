@@ -15,10 +15,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MainActivity extends Activity {
     private WebView web;
+    private ProductMedia media;
+    private final java.util.concurrent.ThreadPoolExecutor mediaExecutor=new java.util.concurrent.ThreadPoolExecutor(1,1,0L,java.util.concurrent.TimeUnit.MILLISECONDS,new java.util.concurrent.ArrayBlockingQueue<Runnable>(24));
     private ValueCallback<Uri[]> fileCallback;
     private final AtomicBoolean checking = new AtomicBoolean(false);
     private static final String REPO="carlorelli97/CarCode-Scanner-Updates";
-    private static final String CURRENT="2.2";
+    private static final String CURRENT="2.4";
     static java.lang.ref.WeakReference<MainActivity> scannerHost=new java.lang.ref.WeakReference<>(null);
     void continuousCode(String code){if(web!=null&&!isDestroyed())web.evaluateJavascript("window.cameraLookup("+JSONObject.quote(code)+")",null);}
     void refreshWhileScanning(){if(web!=null&&!isDestroyed())web.evaluateJavascript("window.cameraRefresh&&window.cameraRefresh()",null);}
@@ -75,11 +77,18 @@ public class MainActivity extends Activity {
     @Override public void onCreate(Bundle state){
         super.onCreate(state);
         readWidgetIntent(getIntent());
+        media=new ProductMedia(new java.io.File(getCacheDir(),"carcode-product-media"));
         web=new WebView(this); setContentView(web);
         web.getSettings().setJavaScriptEnabled(true); web.getSettings().setDomStorageEnabled(true);
-        web.getSettings().setAllowFileAccess(false); web.getSettings().setAllowContentAccess(true);
+        web.getSettings().setCacheMode(WebSettings.LOAD_NO_CACHE); web.getSettings().setAllowFileAccess(false); web.getSettings().setAllowContentAccess(true);
         web.setWebViewClient(new WebViewClient(){@Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest r){return !r.getUrl().toString().startsWith("file:///android_asset/");}});
         web.addJavascriptInterface(new Object(){ @JavascriptInterface public void scan(){runOnUiThread(()->{scannerHost=new java.lang.ref.WeakReference<>(MainActivity.this);web.evaluateJavascript("typeof packing!=='undefined'&&!packing",v->startActivityForResult(new Intent(MainActivity.this,ScannerActivity.class).putExtra("continuous","true".equals(v)),101));});}
+        @JavascriptInterface public void openProduct(String url){if(ProductMedia.valid(url,false))runOnUiThread(()->{try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url)));}catch(Exception ignored){}});}
+        @JavascriptInterface public void loadMedia(String token,String link,String image){
+            if(token==null||!token.matches("[0-9]{1,16}")||!ProductMedia.valid(link,false))return;
+            try{mediaExecutor.execute(()->{String data="",resolved="";try{ProductMedia.Result r=media.load(link,image);data=r.data;resolved=r.image;}catch(Exception ignored){}final String d=data,u=resolved;runOnUiThread(()->{if(web!=null&&!isDestroyed())web.evaluateJavascript("window.productMediaResult("+JSONObject.quote(token)+","+JSONObject.quote(u)+","+JSONObject.quote(d)+")",null);});});}
+            catch(java.util.concurrent.RejectedExecutionException ex){runOnUiThread(()->web.evaluateJavascript("window.productMediaResult("+JSONObject.quote(token)+",\"\",\"\")",null));}
+        }
         @JavascriptInterface public void showLookupResults(){runOnUiThread(()->ScannerActivity.showResults());}
         @JavascriptInterface public void cameraFeedback(String message){runOnUiThread(()->ScannerActivity.feedback(message));}
         @JavascriptInterface public void cameraSyncStatus(String message){runOnUiThread(()->ScannerActivity.syncFeedback(message));}
@@ -98,5 +107,6 @@ public class MainActivity extends Activity {
         web.loadUrl("file:///android_asset/index.html");
         checkUpdates(false);
     }
+    @Override protected void onDestroy(){mediaExecutor.shutdownNow();super.onDestroy();}
     @Override protected void onActivityResult(int req,int res,Intent data){super.onActivityResult(req,res,data);if(req==101&&res==RESULT_OK&&data!=null){String code=data.getStringExtra("barcode");if(code!=null)web.evaluateJavascript("receiveScan("+JSONObject.quote(code)+")",null);}else if(req==102&&fileCallback!=null){fileCallback.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(res,data));fileCallback=null;}}
 }

@@ -18,16 +18,20 @@ function expireCached(){
  const now=Date.now()+serverOffset;
  for(const [id,o] of Object.entries(state.orders)){
   const received=Date.parse(o.receivedAt);if(!Number.isFinite(received)||now-received<EXPIRY_MS)continue;
-  if(!expired.some(x=>x.id===id))expired.unshift({id,date:new Date(received+EXPIRY_MS).toISOString(),lines:o.lines});
+  if(!expired.some(x=>x.id===id))expired.unshift({id,date:new Date(received+EXPIRY_MS).toISOString()});
   delete state.orders[id];if(state.current===id){state.current=null;notify('Ordine scaduto dopo 36 ore');}changed=true;
  }
- if(changed){state.expired=expired.slice(0,100);save();}
+ const history=state.history.filter(o=>{const t=Date.parse(o.receivedAt||o.date);return Number.isFinite(t)&&now-t<EXPIRY_MS;});
+ if(history.length!==state.history.length){state.history=history;changed=true;}
+ if(expired.some(o=>o.lines)){changed=true;}
+ state.expired=expired.filter(o=>{const t=Date.parse(o.date);return Number.isFinite(t)&&now-t<EXPIRY_MS;}).slice(0,100).map(o=>({id:o.id,date:o.date}));
+ if(changed)save();
  return changed;
 }
 function applyRemote(x){
  if(Number.isFinite(Date.parse(x.serverTime))){serverOffset=Date.parse(x.serverTime)-Date.now();try{localStorage.setItem('carcode-server-offset',String(serverOffset))}catch{}}
- if(x.delta&&x.id&&x.order){const id=x.id,o=x.order;if(o.closed){delete state.orders[id];state.history=state.history.filter(h=>h.id!==id);state.history.unshift({id,operator:o.operator,date:o.date,lines:o.lines});}else state.orders[id]=o;}
- else{state.catalog=x.catalog||{};state.orders={};state.history=[];if(Array.isArray(x.expired))state.expired=x.expired;for(const [id,o] of Object.entries(x.orders||{})){if(o.closed)state.history.push({id,operator:o.operator,date:o.date,lines:o.lines});else state.orders[id]=o}state.history.sort((a,b)=>String(b.date).localeCompare(String(a.date)));}
+ if(x.delta&&x.id&&x.order){const id=x.id,o=x.order;if(o.closed){delete state.orders[id];state.history=state.history.filter(h=>h.id!==id);state.history.unshift({id,operator:o.operator,date:o.date,receivedAt:o.receivedAt,lines:o.lines});}else state.orders[id]=o;}
+ else{state.catalog=x.catalog||{};state.orders={};state.history=[];if(Array.isArray(x.expired))state.expired=x.expired;for(const [id,o] of Object.entries(x.orders||{})){if(o.closed)state.history.push({id,operator:o.operator,date:o.date,receivedAt:o.receivedAt,lines:o.lines});else state.orders[id]=o}state.history.sort((a,b)=>String(b.date).localeCompare(String(a.date)));}
  expireCached();if(state.current&&state.orders[state.current]?.owner!==device)state.current=null;save();$('syncStatus').textContent='Collegato • '+new Date().toLocaleTimeString('it-IT');render()
 }
 async function remote(action,body={}){try{if(action!=='pull'){$('message').textContent=action==='scan'?'Lettura in verifica…':'Sincronizzazione…';$('message').className='muted';}let x=await requestSync(action,body);applyRemote(x);return true}catch(e){$('syncStatus').textContent=e.message;notify(e.message);return false}}
@@ -41,7 +45,7 @@ expireCached();
 render();if(config&&window.CarCodeNative)remote('pull');
 // Check the cache even while a package is open. Refresh idle devices automatically.
 setInterval(()=>{if(!pending&&expireCached())render();},10000);
-function idleRefresh(force=false){if(!config||!window.CarCodeNative||pending||queue.length||state.current||(!force&&document.hidden))return;requestSync('pull').then(applyRemote).catch(()=>{});}
+function idleRefresh(force=false){if(!config||!window.CarCodeNative||pending||queue.length||state.current||(!force&&document.hidden))return;requestSync('pull').then(x=>{const current={...state.orders};for(const h of state.history)if(x.orders?.[h.id]?.closed)current[h.id]=x.orders[h.id];if(JSON.stringify(current)!==JSON.stringify(x.orders||{})||JSON.stringify(state.catalog)!==JSON.stringify(x.catalog||{}))applyRemote(x);else if(expireCached())render();}).catch(()=>{});}
 window.cameraRefresh=()=>{if(!config){CarCodeNative.cameraSyncStatus('Archivio locale');return;}if(pending||queue.length||state.current)return;requestSync('pull').then(x=>{applyRemote(x);CarCodeNative.cameraSyncStatus('Sincronizzato · '+new Date().toLocaleTimeString('it-IT'));}).catch(()=>CarCodeNative.cameraSyncStatus('Sincronizzazione non riuscita'));};
 setInterval(idleRefresh,15000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){if(!pending&&expireCached())render();idleRefresh();}});

@@ -36,10 +36,11 @@ function drawLookup(){
   const lines=productSearch?o.lines.filter(l=>codeMatches(l,lookupCode)):o.lines;
   const count=lines.reduce((sum,l)=>sum+Number(l.qty||0),0);
   return '<div class="item"><h3>Ordine '+esc(id)+'</h3>'+(productSearch?'<div class="tag">'+lines.length+' prodotti · '+count+' pezzi corrispondenti</div>':'')+
-   lines.map(l=>'<div style="margin:8px 0"><b>'+esc(l.title||l.sku)+'</b><div class="good">'+esc(l.variant||state.catalog[l.sku]?.variant||'Variante non disponibile')+'</div><small>SKU: '+esc(l.sku)+' · '+l.qty+' pezzi · '+(l.done||0)+'/'+l.qty+' verificati</small>'+(l.location?'<div>'+esc(l.location)+'</div>':'')+(l.alerts?'<div class="bad">'+esc(String(l.alerts).replace(/\s*\[[^\]]+\]/g,''))+'</div>':'')+'</div>').join('')+
+   lines.map(l=>'<div style="margin:8px 0"><b>'+esc(l.title||l.sku)+'</b><div class="good">'+esc(l.variant||state.catalog[l.sku]?.variant||'Variante non disponibile')+'</div><small>SKU: '+esc(l.sku)+' · '+l.qty+' pezzi · '+(l.done||0)+'/'+l.qty+' verificati</small>'+(l.location?'<div>'+esc(l.location)+'</div>':'')+(l.alerts?'<div class="bad">'+esc(String(l.alerts).replace(/\s*\[[^\]]+\]/g,''))+'</div>':'')+productMediaMarkup(l,id)+'</div>').join('')+
    '<button class="wide primary" data-open-order="'+esc(id)+'">Apri dettaglio ordine</button>'+
    '<button class="wide" data-pack="'+esc(id)+'" '+(locked?'disabled':'')+'>'+(locked?'In lavorazione su altro palmare':'Verifica questo pacco')+'</button></div>';
  },'Nessun ordine attivo corrispondente.');
+ attachProductMedia();
  lookupPanel.querySelectorAll('[data-open-order]').forEach(b=>b.onclick=()=>openDetails(b.dataset.openOrder));
  lookupPanel.querySelectorAll('[data-pack]').forEach(b=>b.onclick=async()=>{
   const id=b.dataset.pack;if(state.current&&state.current!==id){notify('Rilascia prima il pacco già in verifica.');return;}
