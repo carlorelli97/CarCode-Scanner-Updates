@@ -1,0 +1,1 @@
+Server licenze separato 3.3. ID applicazione .collaudo: installazione parallela, non aggiorna la app di produzione. Nessun dato reale. NON pubblicare come release. Compilare con workflow e firma originale. Il test migrazione in-place resta separato.

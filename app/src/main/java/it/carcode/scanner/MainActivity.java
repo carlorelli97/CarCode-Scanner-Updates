@@ -15,16 +15,20 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MainActivity extends Activity {
     private WebView web;
+    private LicenseGate license;
+    boolean licensed(){return license!=null&&license.usable();}
+    void licenseVisible(boolean active){if(web!=null)web.setVisibility(active?android.view.View.VISIBLE:android.view.View.INVISIBLE);if(active)dispatchWidget();}
+    void startLicensedWeb(){web.loadUrl("file:///android_asset/index.html");checkUpdates(false);}
     private ProductMedia media;
     private final java.util.concurrent.ThreadPoolExecutor mediaExecutor=new java.util.concurrent.ThreadPoolExecutor(2,2,0L,java.util.concurrent.TimeUnit.MILLISECONDS,new java.util.concurrent.ArrayBlockingQueue<Runnable>(24));
     private final java.util.concurrent.ExecutorService fullMediaExecutor=new java.util.concurrent.ThreadPoolExecutor(1,1,0L,java.util.concurrent.TimeUnit.MILLISECONDS,new java.util.concurrent.ArrayBlockingQueue<Runnable>(2));
     private ValueCallback<Uri[]> fileCallback;
     private final AtomicBoolean checking = new AtomicBoolean(false);
     private static final String REPO="carlorelli97/CarCode-Scanner-Updates";
-    private static final String CURRENT="2.6";
+    private static final String CURRENT="2.8";
     static java.lang.ref.WeakReference<MainActivity> scannerHost=new java.lang.ref.WeakReference<>(null);
-    void continuousCode(String code){if(web!=null&&!isDestroyed())web.evaluateJavascript("window.cameraLookup("+JSONObject.quote(code)+")",null);}
-    void refreshWhileScanning(){if(web!=null&&!isDestroyed())web.evaluateJavascript("window.cameraRefresh&&window.cameraRefresh()",null);}
+    void continuousCode(String code){if(licensed()&&web!=null&&!isDestroyed())web.evaluateJavascript("window.cameraLookup("+JSONObject.quote(code)+")",null);}
+    void refreshWhileScanning(){if(licensed()&&web!=null&&!isDestroyed())web.evaluateJavascript("window.cameraRefresh&&window.cameraRefresh()",null);}
     private boolean webReady=false;
     private String widgetAction;
     private void readWidgetIntent(Intent i){
@@ -32,10 +36,11 @@ public class MainActivity extends Activity {
         if(a!=null&&a.startsWith(prefix)){String x=a.substring(prefix.length());if(x.matches("orders|history|scan|search"))widgetAction=x; i.setAction(null);}
         dispatchWidget();
     }
-    private void dispatchWidget(){if(!webReady||widgetAction==null)return;String a=widgetAction;widgetAction=null;web.evaluateJavascript("window.openWidgetAction("+JSONObject.quote(a)+")",null);}
+    private void dispatchWidget(){if(!licensed()||!webReady||widgetAction==null)return;String a=widgetAction;widgetAction=null;web.evaluateJavascript("window.openWidgetAction("+JSONObject.quote(a)+")",null);}
     @Override protected void onNewIntent(Intent i){super.onNewIntent(i);setIntent(i);readWidgetIntent(i);}
     private static final long UPDATE_DAY_MS=24L*60L*60L*1000L;
     private void checkUpdates(boolean manual){
+        if(getPackageName().endsWith(".collaudo")){if(manual)Toast.makeText(this,"Build di collaudo: aggiornamenti disattivati",Toast.LENGTH_LONG).show();return;}
         if(!manual&&System.currentTimeMillis()-getPreferences(MODE_PRIVATE).getLong("update_checked_at",0)<UPDATE_DAY_MS)return;
         if(!checking.compareAndSet(false,true))return;
         new Thread(()->{
@@ -79,11 +84,12 @@ public class MainActivity extends Activity {
         super.onCreate(state);
         readWidgetIntent(getIntent());
         media=new ProductMedia(new java.io.File(getCacheDir(),"carcode-product-media"));
-        web=new WebView(this); setContentView(web);
+        android.widget.FrameLayout root=new android.widget.FrameLayout(this);
+        web=new WebView(this);root.addView(web,new android.widget.FrameLayout.LayoutParams(-1,-1));setContentView(root);
         web.getSettings().setJavaScriptEnabled(true); web.getSettings().setDomStorageEnabled(true);
         web.getSettings().setCacheMode(WebSettings.LOAD_NO_CACHE); web.getSettings().setAllowFileAccess(false); web.getSettings().setAllowContentAccess(true);
         web.setWebViewClient(new WebViewClient(){@Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest r){return !r.getUrl().toString().startsWith("file:///android_asset/");}});
-        web.addJavascriptInterface(new Object(){ @JavascriptInterface public void scan(){runOnUiThread(()->{scannerHost=new java.lang.ref.WeakReference<>(MainActivity.this);web.evaluateJavascript("true",v->startActivityForResult(new Intent(MainActivity.this,ScannerActivity.class).putExtra("continuous","true".equals(v)),101));});}
+        web.addJavascriptInterface(new Object(){ @JavascriptInterface public void scan(){runOnUiThread(()->{if(!licensed())return;scannerHost=new java.lang.ref.WeakReference<>(MainActivity.this);web.evaluateJavascript("true",v->startActivityForResult(new Intent(MainActivity.this,ScannerActivity.class).putExtra("continuous","true".equals(v)),101));});}
         @JavascriptInterface public void openProduct(String url){if(ProductMedia.valid(url,false))runOnUiThread(()->{try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url)));}catch(Exception ignored){}});}
         @JavascriptInterface public void loadMedia(String token,String link,String image){queueMedia(token,link,image,false);}
         @JavascriptInterface public void loadFullMedia(String token,String link,String image){queueMedia(token,link,image,true);}
@@ -96,14 +102,14 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void sync(String endpoint,String body){new Thread(()->{
             String result;
             try{
+                if(!licensed())throw new Exception("Licenza non attiva");
                 URL url=new URL(endpoint);if(!url.getProtocol().equals("https")||!url.getHost().equals("script.google.com")||!url.getPath().matches("/macros/s/[A-Za-z0-9_-]+/exec"))throw new Exception("URL Google non valido");
                 HttpURLConnection c=(HttpURLConnection)url.openConnection();c.setConnectTimeout(15000);c.setReadTimeout(30000);c.setRequestMethod("POST");c.setDoOutput(true);c.setRequestProperty("Content-Type","application/json");try(java.io.OutputStream out=c.getOutputStream()){out.write(body.getBytes(StandardCharsets.UTF_8));}try(java.io.InputStream in=c.getInputStream();java.io.ByteArrayOutputStream buffer=new java.io.ByteArrayOutputStream()){byte[] bytes=new byte[4096];int n;while((n=in.read(bytes))!=-1){buffer.write(bytes,0,n);if(buffer.size()>8000000)throw new Exception("Risposta troppo grande");}result=buffer.toString("UTF-8");}finally{c.disconnect();}
             }catch(Exception ex){result="{\"ok\":false,\"error\":"+JSONObject.quote(ex.getMessage())+"}";}
             final String response=result;runOnUiThread(()->web.evaluateJavascript("syncResult("+JSONObject.quote(response)+")",null));
         }).start();}},"CarCodeNative");
         web.setWebChromeClient(new WebChromeClient(){ @Override public boolean onShowFileChooser(WebView w,ValueCallback<Uri[]> callback,FileChooserParams params){ if(fileCallback!=null) fileCallback.onReceiveValue(null); fileCallback=callback; try{startActivityForResult(params.createIntent(),102);return true;}catch(Exception e){fileCallback=null;callback.onReceiveValue(null);return true;} }});
-        web.loadUrl("file:///android_asset/index.html");
-        checkUpdates(false);
+        license=new LicenseGate(this,root,CURRENT);license.start();
     }
     private void queueMedia(String token,String link,String image,boolean full){
         if(token==null||!token.matches("[0-9]{1,16}"))return;
@@ -111,7 +117,8 @@ public class MainActivity extends Activity {
         catch(java.util.concurrent.RejectedExecutionException ex){mediaReply(token,"","","Coda immagini occupata",full);}
     }
     private void mediaReply(String token,String resolved,String data,String error,boolean full){runOnUiThread(()->{if(web!=null&&!isDestroyed())web.evaluateJavascript("window."+(full?"fullMediaResult":"productMediaResult")+"("+JSONObject.quote(token)+","+JSONObject.quote(resolved)+","+JSONObject.quote(data)+","+JSONObject.quote(error)+")",null);});}
-    @Override public void onBackPressed(){if(web==null){super.onBackPressed();return;}web.evaluateJavascript("window.closeFullMedia&&window.closeFullMedia()",v->{if(!"true".equals(v))super.onBackPressed();});}
-    @Override protected void onDestroy(){mediaExecutor.shutdownNow();fullMediaExecutor.shutdownNow();super.onDestroy();}
-    @Override protected void onActivityResult(int req,int res,Intent data){super.onActivityResult(req,res,data);if(req==101&&res==RESULT_OK&&data!=null){String code=data.getStringExtra("barcode");if(code!=null)web.evaluateJavascript("receiveScan("+JSONObject.quote(code)+")",null);}else if(req==102&&fileCallback!=null){fileCallback.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(res,data));fileCallback=null;}}
+    @Override public void onBackPressed(){if(web==null||!licensed()){super.onBackPressed();return;}web.evaluateJavascript("window.handleBack28&&window.handleBack28()",v->{if(!"true".equals(v))super.onBackPressed();});}
+    @Override protected void onResume(){super.onResume();if(license!=null)license.resume();}
+    @Override protected void onDestroy(){if(license!=null)license.destroy();mediaExecutor.shutdownNow();fullMediaExecutor.shutdownNow();super.onDestroy();}
+    @Override protected void onActivityResult(int req,int res,Intent data){super.onActivityResult(req,res,data);if(req==101&&licensed()&&res==RESULT_OK&&data!=null){String code=data.getStringExtra("barcode");if(code!=null)web.evaluateJavascript("receiveScan("+JSONObject.quote(code)+")",null);}else if(req==102&&fileCallback!=null){fileCallback.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(res,data));fileCallback=null;}}
 }

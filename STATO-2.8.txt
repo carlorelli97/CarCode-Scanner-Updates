@@ -1,0 +1,6 @@
+CANDIDATO INTEGRATO 2.8 — NON RELEASE UFFICIALE
+Nuovo: associazione aziendale una tantum; ID condivisibile; token protetto nel Keystore; verifica licenza aziendale, heartbeat versione; mantenuto controllo aggiornamenti GitHub. Android richiede conferma salvo dispositivi gestiti.
+Scelta prudenziale: Internet necessario al lancio e per le verifiche periodiche (ogni 60 s; tolleranza fino a 120 s dall'ultima risposta positiva). Nessun nuovo OTP richiesto per semplice assenza di rete o rinnovo. L'assenza di rete prolungata blocca l'interfaccia ma non elimina ordini e credenziali. Verificare che sia adatto al magazzino prima della release.
+La prima associazione è necessaria anche per chi migra da un'app che non aveva questa licenza. L'archivio ordini/Google Sync esistente non viene riscritto; le credenziali di magazzino restano separate, non sono ancora legate all'identità aziendale sul backend ordini.
+Package e versionCode invariati rispetto al candidato 2.8; versionCode 19 > 17 del sorgente 2.6. Le firme degli APK originali 2.4 e 2.6 coincidono; la CI blocca la compilazione distribuibile se la firma risultante non coincide. Non verificata firma 2.5.
+Non compilato su Android: servono SDK, Gradle e firma privata conservata in GitHub. Test reale con aggiornamento, camera, pistola, rete, immagini e sincronizzazione Google obbligatorio.

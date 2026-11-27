@@ -29,14 +29,14 @@ function doPost(e) {
     function own(){if(o&&o.expired)throw Error('Ordine scaduto dopo 36 ore');if(!o||o.closed||o.owner!==q.device)throw Error('Ordine non assegnato a questo dispositivo');}
     function persist(key,obj){var row=locations[key]||sheet.getLastRow()+1;sheet.getRange(row,1,1,2).setValues([[key,JSON.stringify(obj)]]);all[key]=obj;}
     if(q.action==='import'){
-      var incoming=q.orders||{};Object.keys(incoming).forEach(function(raw){var key=normal(raw);if(!/^[A-Z0-9][A-Z0-9_./ -]{0,119}$/.test(key))throw Error('Numero ordine non valido');var lines=incoming[raw].lines;if(!Array.isArray(lines)||!lines.length)throw Error('Ordine vuoto');var seen=Object.create(null);var clean=lines.map(function(l){var s=normal(l.sku),n=Number(l.qty);if(!s||!Number.isSafeInteger(n)||n<1||seen[s])throw Error('Riga non valida');seen[s]=true;return {sku:s,qty:n,done:0,variant:String(l.variant||''),title:String(l.title||''),location:String(l.location||''),alerts:String(l.alerts||'')};});
+      var incoming=q.orders||{};Object.keys(incoming).forEach(function(raw){var key=normal(raw);if(!/^[A-Z0-9][A-Z0-9_./ -]{0,119}$/.test(key))throw Error('Numero ordine non valido');var lines=incoming[raw].lines;if(!Array.isArray(lines)||!lines.length)throw Error('Ordine vuoto');var seen=Object.create(null);var clean=lines.map(function(l){var s=normal(l.sku),n=Number(l.qty);if(!s||!Number.isSafeInteger(n)||n<1||seen[s])throw Error('Riga non valida');seen[s]=true;return {sku:s,qty:n,done:0,variant:String(l.variant||''),title:String(l.title||''),location:String(l.location||''),alerts:String(l.alerts||''),link:mediaUrl28(l.link,false),image:mediaUrl28(l.image,true),ean:normal(l.ean)};});
       var existing=all[key];
       if(existing){
         // Re-sending the original order enriches metadata without resetting counts, ownership or closure.
         if(existing.closed||existing.expired||existing.lines.length!==clean.length||!clean.every(function(l){return existing.lines.some(function(x){return x.sku===l.sku&&x.qty===l.qty;});}))return;
         var enriched=false;
         clean.forEach(function(l){var old=existing.lines.find(function(x){return x.sku===l.sku;});['variant','title','location','alerts'].forEach(function(field){if(l[field]&&old[field]!==l[field]){old[field]=l[field];enriched=true;}});});
-        if(enriched)persist(key,existing);
+        clean.forEach(function(l){var old=existing.lines.find(function(x){return x.sku===l.sku;});if(!old.link&&l.link){old.link=l.link;enriched=true;}if(!old.image&&l.image&&old.link===l.link){old.image=l.image;enriched=true;}});if(enriched)persist(key,existing);
       }else persist(key,{lines:clean,owner:null,closed:false,receivedAt:stamp});});
     }else if(q.action==='alias'){
       var sku=normal(q.sku),ean=normal(q.ean);if(!catalog[sku])throw Error('SKU assente dal registro Google');if(!/^\d{8,14}$/.test(ean))throw Error('EAN non valido: inserisci 8–14 cifre');
@@ -48,12 +48,19 @@ function doPost(e) {
     }else if(q.action==='undo'){own();var l=o.lines.find(function(x){return x.sku===normal(q.sku);});if(!l||!l.done)throw Error('Nessuna lettura da annullare');l.done--;changed=true;
     }else if(q.action==='release'){own();o.owner=null;changed=true;
     }else if(q.action==='close'){own();if(!q.operator||!o.lines.every(function(l){return l.done===l.qty;}))throw Error('Verifica incompleta');o.closed=true;o.operator=String(q.operator);o.date=new Date().toISOString();o.owner=null;changed=true;
-    }else if(q.action!=='pull')throw Error('Operazione sconosciuta');
+    }else if(q.action==='product_media'){
+      if(!o||o.expired||o.closed)throw Error('Ordine non disponibile');
+      var line=o.lines.find(function(l){return l.sku===normal(q.sku);});
+      if(!line||!line.link||line.link!==q.link||!mediaUrl28(q.image,true))throw Error('Foto o inserzione non valida');
+      line.image=q.image;changed=true;
+    }else if(q.action==='order_status'){
+      var counts={working:0,open:0,closed:0};Object.keys(all).forEach(function(k){var a=all[k];if(!a.expired)counts[a.closed?'closed':a.owner?'working':'open']++;});return reply({ok:true,counts:counts});
+    }else if(q.action!=='pull'&&q.action!=='search_orders')throw Error('Operazione sconosciuta');
     if(changed)persist(id,o);SpreadsheetApp.flush();
     // Modern scanners receive only the changed order; older devices and PCs keep the full response.
     if(q.compact===true&&changed&&['claim','scan','undo','release','close'].indexOf(q.action)>=0)return reply({ok:true,delta:true,id:id,order:o,serverTime:stamp});
     var visible=Object.create(null),expired=[];
-    Object.keys(all).forEach(function(key){var item=all[key];if(item.expired){expired.push({id:key,date:item.expiredAt,lines:item.lines});}else visible[key]=item;});
+    Object.keys(all).forEach(function(key){var item=all[key];if(item.expired){expired.push({id:key,date:item.expiredAt});}else if(q.action!=='search_orders'||key.indexOf(normal(q.query))>=0||item.lines.some(function(l){return l.sku===normal(q.query);}))visible[key]=item;});
     expired.sort(function(a,b){return String(b.date).localeCompare(String(a.date));});
     return reply({ok:true,catalog:catalog,orders:visible,expired:expired.slice(0,100),serverTime:stamp});
   }catch(err){return reply({ok:false,error:String(err.message||err)});}finally{if(acquired)lock.releaseLock();}
@@ -90,4 +97,11 @@ function compactOrder(q,ss,sheet){
     else if(q.action==='close'){if(!q.operator||!o.lines.every(function(l){return l.done===l.qty;}))throw Error('Verifica incompleta');o.closed=true;o.operator=String(q.operator);o.date=stamp;o.owner=null;}
   }
   write();return reply({ok:true,delta:true,id:id,order:o,serverTime:stamp});
+}
+
+function mediaUrl28(value,image){
+ var s=String(value||'');if(s.length>(image?1800:1000)||/\s/.test(s))return '';
+ var m=/^https:\/\/([a-z0-9.-]+)(?::443)?(?:[/?#]|$)/i.exec(s);if(!m)return '';
+ var host=m[1].toLowerCase(),domains=image?['media-amazon.com','ssl-images-amazon.com','ebayimg.com','tiktokcdn.com','tiktokcdn-us.com','tiktokcdn-eu.com','ibytedtos.com','byteoversea.com']:['amazon.it','amazon.com','amazon.de','amazon.fr','amazon.es','amazon.co.uk','ebay.it','ebay.com','ebay.de','ebay.fr','ebay.es','ebay.co.uk','tiktok.com'];
+ return domains.some(function(d){return host===d||host.endsWith('.'+d);})?s:'';
 }

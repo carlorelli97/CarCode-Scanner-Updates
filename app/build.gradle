@@ -2,6 +2,6 @@ plugins { id 'com.android.application' }
 android {
     namespace 'it.carcode.scanner'
     compileSdk 35
-    defaultConfig { applicationId 'it.carcode.scanner'; minSdk 23; targetSdk 34; versionCode 17; versionName '2.6' }
+    defaultConfig { applicationId 'it.carcode.scanner.collaudo'; minSdk 23; targetSdk 34; versionCode 19; versionName '2.8' }
 }
 dependencies { implementation 'com.google.zxing:core:3.5.3' }

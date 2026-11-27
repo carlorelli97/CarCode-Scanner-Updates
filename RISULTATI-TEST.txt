@@ -1,0 +1,8 @@
+Rieseguiti tutti i test di tests/run.sh: PASS.
+- ricerca ordine, doppi ordini, SKU, EAN, UPC, corrispondenze multiple, codice sconosciuto, sola lettura
+- navigazione, 64 combinazioni pure JS
+- DOM simulato immagini, riuso thumbnail, sincronizzazione metadati
+- Apps Script ordini simulato, conteggi, scadenza 36h, import e ricerca
+- 1500 ordini sintetici con URL immagine, conflitti simulati, quantità e undo, chiusura e token non valido
+- cache Java pura: 100 immagini sintetiche, LRU, 30 MB, rifiuto path errato.
+I 29 test aggiuntivi licenze sono nell'archivio backend. Non equivalgono a collaudi Android reali.

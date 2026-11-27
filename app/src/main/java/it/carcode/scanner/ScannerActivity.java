@@ -87,6 +87,6 @@ import java.util.EnumMap;
     private void toggleTorch(){if(camera==null)return;try{Camera.Parameters p=camera.getParameters();p.setFlashMode(torch?Camera.Parameters.FLASH_MODE_OFF:Camera.Parameters.FLASH_MODE_TORCH);camera.setParameters(p);torch=!torch;flash.setText(torch?"Spegni":"Torcia");}catch(Exception ignored){}}
     private void stop(){active=false;timer.removeCallbacks(refresher);if(camera!=null){camera.setPreviewCallback(null);try{camera.stopPreview();}catch(Exception ignored){}camera.release();camera=null;}torch=false;if(flash!=null)flash.setText("Torcia");}
     public void surfaceCreated(SurfaceHolder h){start();}public void surfaceChanged(SurfaceHolder h,int f,int w,int t){}public void surfaceDestroyed(SurfaceHolder h){stop();}
-    @Override protected void onResume(){super.onResume();start();}@Override protected void onPause(){stop();super.onPause();}
+    @Override protected void onResume(){super.onResume();MainActivity a=MainActivity.scannerHost.get();if(a==null||!a.licensed()){finish();return;}start();}@Override protected void onPause(){stop();super.onPause();}
     @Override protected void onDestroy(){stop();worker.shutdownNow();super.onDestroy();}
 }
